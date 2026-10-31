@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>صالح؟ | فحص صلاحية الأغذية</title>
+  <meta name="description" content="صفحة تفاعلية لفحص صلاحية المنتجات الغذائية: صوّر الباركود وتاريخ الصلاحية بكاميرا الجوال واحصل على نتيجة الفحص فورًا.">
+  <meta name="theme-color" content="#0B6B52">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-in">
+      <a class="brand" href="#" aria-label="صالح؟ الصفحة الرئيسية">
+        <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+          <rect x="3" y="3" width="34" height="34" rx="9" fill="currentColor"/>
+          <path d="M11 21.5l6 6 12-14" fill="none" stroke="var(--accent-ink)" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="brand-text"><strong>صالح؟</strong><small>فحص صلاحية الأغذية</small></span>
+      </a>
+      <button type="button" id="btnMyAllergy" class="btn ghost small">
+        حساسيتي <span id="myAllergyCount" class="count" hidden></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="intro">
+      <h1>اعرف إن كان المنتج صالحًا قبل أن تأكله</h1>
+      <p>صوّر الباركود وتاريخ الصلاحية بكاميرا الجوال، أو أدخل البيانات بنفسك. يحلل الموقع التاريخ وطريقة الحفظ ومسببات الحساسية ومصدر المنتج، ثم يعطيك نتيجة الفحص.</p>
+    </section>
+
+    <section class="capture" aria-label="الإدخال بالكاميرا">
+      <button type="button" id="btnScan" class="cap">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3M23 4h3a2 2 0 0 1 2 2v3M28 23v3a2 2 0 0 1-2 2h-3M9 28H6a2 2 0 0 1-2-2v-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M9 10v12M12.5 10v12M15 10v12M18.5 10v12M22 10v12" stroke="currentColor" stroke-width="2" /></svg>
+        <span><b>مسح الباركود</b><small>يجلب اسم المنتج والحساسية والمصدر</small></span>
+      </button>
+      <button type="button" id="btnOcr" class="cap">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 11a2 2 0 0 1 2-2h3.5l2-3h7l2 3H25a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="16" cy="17" r="4.6" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
+        <span><b>تصوير التاريخ</b><small>يقرأ تاريخ الإنتاج والانتهاء من العبوة</small></span>
+      </button>
+      <input type="file" id="ocrFile" accept="image/*" capture="environment" hidden>
+      <input type="file" id="barcodeFile" accept="image/*" capture="environment" hidden>
+    </section>
+
+    <div id="status" class="status" role="status" aria-live="polite" hidden>
+      <span class="status-text" id="statusText"></span>
+      <span class="status-bar" id="statusBar" hidden><span id="statusFill"></span></span>
+    </div>
+
+    <section id="ocrPanel" class="ocr" hidden aria-label="نتيجة قراءة التاريخ">
+      <img id="ocrThumb" alt="الصورة الملتقطة">
+      <div class="ocr-body">
+        <h2>التواريخ التي قُرئت من الصورة</h2>
+        <p class="hint">اضغط على «إنتاج» أو «انتهاء» لتغيير مكان أي تاريخ.</p>
+        <ul id="ocrDates" class="ocr-dates"></ul>
+        <details>
+          <summary>النص الكامل الذي قُرئ</summary>
+          <pre id="ocrText" dir="ltr"></pre>
+        </details>
+      </div>
+    </section>
+
+    <div class="samples">
+      <span>جرّب مثالًا:</span>
+      <div id="sampleButtons" class="sample-list"></div>
+    </div>
+
+    <form id="form" novalidate autocomplete="off">
+      <fieldset>
+        <legend><span class="num">1</span>بيانات المنتج</legend>
+        <div class="product-head">
+          <img id="productImg" alt="صورة المنتج" hidden>
+          <div class="grid">
+            <label class="field span-2">
+              <span>اسم المنتج</span>
+              <input id="name" name="name" type="text" placeholder="مثال: حليب طازج كامل الدسم">
+            </label>
+            <label class="field">
+              <span>الباركود</span>
+              <input id="barcode" name="barcode" type="text" inputmode="numeric" dir="ltr" class="mono" placeholder="6281234567890">
+            </label>
+            <label class="field">
+              <span>نوع المنتج</span>
+              <select id="category" name="category"></select>
+            </label>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="num">2</span>تاريخ الإنتاج والانتهاء</legend>
+        <div class="grid">
+          <label class="field">
+            <span>تاريخ الإنتاج</span>
+            <input id="prod" name="prod" type="date">
+          </label>
+          <label class="field">
+            <span>تاريخ الانتهاء</span>
+            <input id="exp" name="exp" type="date">
+          </label>
+        </div>
+        <div class="seg" role="radiogroup" aria-label="نوع التاريخ المكتوب على العبوة">
+          <label><input type="radio" name="dateType" value="useBy" checked><span>تاريخ انتهاء الصلاحية (EXP)</span></label>
+          <label><input type="radio" name="dateType" value="bestBefore"><span>يُفضّل استهلاكه قبل (Best before)</span></label>
+        </div>
+        <div class="inline">
+          <label class="check"><input type="checkbox" id="opened" name="opened"><span>العبوة مفتوحة</span></label>
+          <label class="field compact" id="openedWrap" hidden>
+            <span>تاريخ الفتح</span>
+            <input id="openedDate" name="openedDate" type="date">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="num">3</span>مسببات الحساسية</legend>
+        <p class="sub">يحتوي على</p>
+        <div id="allergens" class="chips"></div>
+        <p class="sub">قد يحتوي على آثار من</p>
+        <div id="traces" class="chips"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="num">4</span>طرق الحفظ والتخزين</legend>
+        <div class="grid">
+          <label class="field">
+            <span>طريقة الحفظ المكتوبة على العبوة</span>
+            <select id="storageRequired" name="storageRequired"></select>
+          </label>
+          <label class="field">
+            <span>أين حُفظ المنتج فعلًا؟</span>
+            <select id="storageActual" name="storageActual"></select>
+          </label>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="heat"><span>تعرّض للشمس أو لحرارة عالية (مثل السيارة)</span></label>
+          <label class="check"><input type="checkbox" name="refrozen"><span>ذاب ثم أُعيد تجميده</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="num">5</span>مصدر المنتج</legend>
+        <div class="grid">
+          <label class="field">
+            <span>الشركة المصنعة أو العلامة التجارية</span>
+            <input id="manufacturer" name="manufacturer" type="text">
+          </label>
+          <label class="field">
+            <span>بلد المنشأ</span>
+            <input id="origin" name="origin" type="text" list="countries">
+          </label>
+          <label class="field">
+            <span>رقم التشغيلة (LOT)</span>
+            <input id="batch" name="batch" type="text" dir="ltr" class="mono">
+          </label>
+        </div>
+        <datalist id="countries"></datalist>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="num">6</span>الفحص الظاهري</legend>
+        <p class="sub">حدّد أي علامة تلاحظها على المنتج أو العبوة</p>
+        <div id="signs" class="chips signs"></div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="btn primary">افحص المنتج</button>
+        <button type="reset" class="btn ghost">مسح الحقول</button>
+      </div>
+    </form>
+
+    <section id="result" class="result" hidden tabindex="-1" aria-live="polite"></section>
+
+    <section class="history" aria-labelledby="historyTitle">
+      <div class="history-head">
+        <h2 id="historyTitle">آخر الفحوصات</h2>
+        <button type="button" id="clearHistory" class="btn ghost small" hidden>مسح السجل</button>
+      </div>
+      <div id="historyTools" class="history-tools" hidden>
+        <input id="historySearch" type="text" placeholder="ابحث باسم المنتج أو بلد المنشأ" aria-label="بحث في السجل">
+        <div class="filters" id="historyFilters">
+          <button type="button" data-filter="all" aria-pressed="true">الكل</button>
+          <button type="button" data-filter="good" aria-pressed="false">صالح</button>
+          <button type="button" data-filter="warn" aria-pressed="false">بشروط</button>
+          <button type="button" data-filter="bad" aria-pressed="false">غير صالح</button>
+        </div>
+      </div>
+      <ul id="historyList" class="history-list"></ul>
+      <p id="historyEmpty" class="hint">لم تفحص أي منتج بعد. ستظهر هنا نتائج الفحوصات المحفوظة على هذا الجهاز.</p>
+    </section>
+
+    <footer class="foot">
+      <p>صالح؟ أداة توعوية تساعدك على اتخاذ القرار، ولا تغني عن الفحص المخبري. عند الشك في سلامة أي منتج لا تتناوله.</p>
+      <p>بيانات المنتجات من قاعدة <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> المفتوحة.</p>
+    </footer>
+  </main>
+
+  <dialog id="scanDialog" class="dialog">
+    <div class="dlg-head">
+      <h2>وجّه الكاميرا نحو الباركود</h2>
+      <button type="button" class="icon-btn" data-close aria-label="إغلاق">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="reader" class="reader"></div>
+    <p id="scanMsg" class="hint">ضع الباركود داخل الإطار وثبّت الجوال. سيُقرأ تلقائيًا.</p>
+    <div class="dlg-actions">
+      <button type="button" id="scanFromPhoto" class="btn ghost">التقاط صورة للباركود</button>
+      <button type="button" id="manualBarcode" class="btn ghost">إدخال الرقم يدويًا</button>
+    </div>
+  </dialog>
+
+  <dialog id="allergyDialog" class="dialog">
+    <div class="dlg-head">
+      <h2>حساسيتي</h2>
+      <button type="button" class="icon-btn" data-close aria-label="إغلاق">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <p class="hint">اختر المواد التي لديك حساسية منها. سينبهك الموقع إذا احتوى أي منتج عليها. تُحفظ على هذا الجهاز فقط.</p>
+    <div id="myAllergies" class="chips"></div>
+    <div class="dlg-actions">
+      <button type="button" id="saveAllergies" class="btn primary">حفظ</button>
+    </div>
+  </dialog>
+
+  <div id="readerFile" class="offscreen" aria-hidden="true"></div>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
