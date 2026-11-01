@@ -126,19 +126,11 @@
 
       <fieldset>
         <legend><span class="num">4</span>طرق الحفظ والتخزين</legend>
-        <div class="grid">
-          <label class="field">
-            <span>طريقة الحفظ المكتوبة على العبوة</span>
-            <select id="storageRequired" name="storageRequired"></select>
-          </label>
-          <label class="field">
-            <span>أين حُفظ المنتج فعلًا؟</span>
-            <select id="storageActual" name="storageActual"></select>
-          </label>
-        </div>
-        <div class="checks">
-          <label class="check"><input type="checkbox" name="heat"><span>تعرّض للشمس أو لحرارة عالية (مثل السيارة)</span></label>
-          <label class="check"><input type="checkbox" name="refrozen"><span>ذاب ثم أُعيد تجميده</span></label>
+        <p class="hint" id="storageHint">اتبع طريقة الحفظ المكتوبة على العبوة.</p>
+        <div class="seg" role="radiogroup" aria-label="ظروف تخزين المنتج">
+          <label><input type="radio" name="storage" value="suitable"><span>مناسبة</span></label>
+          <label><input type="radio" name="storage" value="uncertain"><span>غير مؤكدة</span></label>
+          <label><input type="radio" name="storage" value="unsuitable"><span>غير مناسبة</span></label>
         </div>
       </fieldset>
 

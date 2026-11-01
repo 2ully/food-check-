@@ -11,22 +11,17 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 /* ---------------- البيانات المرجعية ---------------- */
 
-// أشهر 14 مادة مسببة للحساسية (حسب المعايير الدولية) مع رموزها في قاعدة Open Food Facts
+// مسببات الحساسية الرئيسية مع أمثلة عليها ورموزها في قاعدة Open Food Facts
 const ALLERGENS = [
-  { id: 'gluten', ar: 'القمح والغلوتين', off: ['en:gluten', 'en:wheat'] },
-  { id: 'milk', ar: 'الحليب ومشتقاته', off: ['en:milk'] },
-  { id: 'eggs', ar: 'البيض', off: ['en:eggs'] },
+  { id: 'milk', ar: 'حليب البقر ومنتجات الألبان', off: ['en:milk'] },
+  { id: 'eggs', ar: 'بيض الدجاج', off: ['en:eggs'] },
   { id: 'peanuts', ar: 'الفول السوداني', off: ['en:peanuts'] },
-  { id: 'nuts', ar: 'المكسرات', off: ['en:nuts'] },
-  { id: 'soy', ar: 'الصويا', off: ['en:soybeans'] },
-  { id: 'fish', ar: 'الأسماك', off: ['en:fish'] },
-  { id: 'crustaceans', ar: 'القشريات', off: ['en:crustaceans'] },
-  { id: 'molluscs', ar: 'الرخويات', off: ['en:molluscs'] },
+  { id: 'nuts', ar: 'المكسرات الشجرية', ex: 'الجوز، البقان، اللوز', off: ['en:nuts'] },
+  { id: 'fish', ar: 'الأسماك', ex: 'القاروص، السمك المفلطح', off: ['en:fish'] },
+  { id: 'crustaceans', ar: 'الأسماك القشرية والمحار', ex: 'الروبيان، سرطان البحر، السلطعون', off: ['en:crustaceans', 'en:molluscs'] },
+  { id: 'gluten', ar: 'القمح', off: ['en:gluten', 'en:wheat'] },
+  { id: 'soy', ar: 'فول الصويا', off: ['en:soybeans'] },
   { id: 'sesame', ar: 'السمسم', off: ['en:sesame-seeds'] },
-  { id: 'mustard', ar: 'الخردل', off: ['en:mustard'] },
-  { id: 'celery', ar: 'الكرفس', off: ['en:celery'] },
-  { id: 'sulphites', ar: 'الكبريتيت', off: ['en:sulphur-dioxide-and-sulphites'] },
-  { id: 'lupin', ar: 'الترمس', off: ['en:lupin'] },
 ];
 
 // خصائص كل نوع: طريقة الحفظ الافتراضية، هل هو سريع التلف، المدة الآمنة بعد الفتح، ومتى نعتبره «قريب الانتهاء»
@@ -53,8 +48,6 @@ const STORAGE = {
   cool: 'مكان بارد وجاف بعيد عن الشمس',
   room: 'حرارة الغرفة (أقل من 25°م)',
 };
-const STORAGE_SHORT = { freezer: 'المجمّد', fridge: 'الثلاجة', cool: 'مكان بارد وجاف', room: 'حرارة الغرفة' };
-const COLDNESS = { freezer: 0, fridge: 1, cool: 2, room: 3 };
 
 const SIGNS = [
   { id: 'swollen', ar: 'انتفاخ العلبة أو الغطاء', level: 'bad', msg: 'الانتفاخ علامة على نشاط بكتيري قد يسبب التسمم الوشيقي (البوتيوليزم). لا تفتح العبوة ولا تتذوقها.' },
@@ -200,34 +193,21 @@ function analyze(d) {
       } else {
         add(since === cat.openedDays ? 'warn' : 'good', 'dates', `فُتحت منذ ${days(since)}. يُستهلك خلال ${days(cat.openedDays)} من الفتح، أي حتى ${fmt(limit)}.`);
       }
-      if (cat.fridgeAfterOpen && d.storageActual && d.storageActual !== 'fridge' && d.storageActual !== 'freezer') {
-        add('warn', 'storage', 'بعد فتح هذا النوع يجب حفظه في الثلاجة.');
-      }
+      if (cat.fridgeAfterOpen) add('info', 'storage', 'بعد فتح هذا النوع يجب حفظه في الثلاجة.');
     }
   }
 
-  // 2) الحفظ والتخزين
-  const req = d.storageRequired || cat.storage;
-  const act = d.storageActual;
-  if (!act) {
-    add('info', 'storage', 'لم تحدد أين حُفظ المنتج. طريقة الحفظ الخاطئة قد تفسده قبل تاريخ الانتهاء.');
-  } else if (req && COLDNESS[act] > COLDNESS[req]) {
-    if (req === 'freezer' && act === 'fridge') {
-      add('warn', 'storage', 'منتج مجمد حُفظ في الثلاجة: استهلكه خلال يوم إلى يومين ولا تُعِد تجميده.');
-      const limit = addDays(today, 1);
-      if (!effectiveExp || limit < effectiveExp) effectiveExp = limit;
-    } else if (req === 'freezer') {
-      add(cat.perishable ? 'bad' : 'warn', 'storage', 'منتج مجمد تُرك في حرارة الغرفة. اللحوم والأسماك التي ذابت خارج الثلاجة لا تُستهلك.');
-    } else if (req === 'fridge') {
-      add(cat.perishable ? 'bad' : 'warn', 'storage', `يجب حفظه في الثلاجة لكنه حُفظ في ${STORAGE_SHORT[act]}. المنتجات سريعة التلف لا تبقى آمنة أكثر من ساعتين خارج التبريد.`);
-    } else {
-      add('warn', 'storage', `المطلوب: ${STORAGE[req]}، لكنه حُفظ في ${STORAGE_SHORT[act]}. الحرارة تسرّع تلف المنتج.`);
-    }
+  // 2) ظروف التخزين
+  const where = cat.storage ? ` الحفظ الصحيح لهذا النوع: ${STORAGE[cat.storage]}.` : '';
+  if (d.storage === 'suitable') {
+    add('good', 'storage', 'ظروف تخزين المنتج مناسبة.');
+  } else if (d.storage === 'uncertain') {
+    add('warn', 'storage', 'ظروف تخزين المنتج غير مؤكدة، فافحصه جيدًا قبل استهلاكه.' + where);
+  } else if (d.storage === 'unsuitable') {
+    add('bad', 'storage', 'حُفظ المنتج في ظروف غير مناسبة، مثل الحرارة أو الذوبان ثم إعادة التجميد، وهذا يسرّع نمو البكتيريا حتى قبل تاريخ الانتهاء.' + where);
   } else {
-    add('good', 'storage', `طريقة الحفظ مناسبة (${STORAGE_SHORT[act]}).`);
+    add('info', 'storage', 'لم تحدد ظروف تخزين المنتج. طريقة الحفظ الخاطئة قد تفسده قبل تاريخ الانتهاء.');
   }
-  if (d.heat) add(cat.perishable ? 'bad' : 'warn', 'storage', 'تعرّض المنتج للشمس أو لحرارة عالية، وهذا يسرّع نمو البكتيريا ويفسد الطعم والقيمة الغذائية.');
-  if (d.refrozen) add(['meat', 'fish', 'frozen'].includes(d.category) ? 'bad' : 'warn', 'storage', 'ذاب المنتج ثم أُعيد تجميده. البكتيريا تتكاثر أثناء الذوبان ولا يقتلها التجميد مرة أخرى.');
 
   // 3) مسببات الحساسية
   const mine = loadMyAllergies();
@@ -306,10 +286,7 @@ const form = $('#form');
 function fillOptions() {
   $('#category').innerHTML = '<option value="">اختر النوع</option>' +
     Object.entries(CATEGORIES).map(([k, c]) => `<option value="${k}">${c.ar}</option>`).join('');
-  const st = Object.entries(STORAGE).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
-  $('#storageRequired').innerHTML = '<option value="">غير مذكورة (حسب نوع المنتج)</option>' + st;
-  $('#storageActual').innerHTML = '<option value="">اختر</option>' + st;
-  const chip = (name, a) => `<label><input type="checkbox" name="${name}" value="${a.id}"><span>${a.ar}</span></label>`;
+  const chip = (name, a) => `<label><input type="checkbox" name="${name}" value="${a.id}"><span>${a.ar}${a.ex ? ` <small>(${a.ex})</small>` : ''}</span></label>`;
   $('#allergens').innerHTML = ALLERGENS.map((a) => chip('allergens', a)).join('');
   $('#traces').innerHTML = ALLERGENS.map((a) => chip('traces', a)).join('');
   $('#myAllergies').innerHTML = ALLERGENS.map((a) => chip('mine', a)).join('');
@@ -326,8 +303,7 @@ function getData() {
     dateType: form.elements.dateType.value || 'useBy',
     opened: form.elements.opened.checked, openedDate: v('openedDate'),
     allergens: checked('allergens'), traces: checked('traces'),
-    storageRequired: v('storageRequired'), storageActual: v('storageActual'),
-    heat: form.elements.heat.checked, refrozen: form.elements.refrozen.checked,
+    storage: form.elements.storage.value,
     manufacturer: v('manufacturer'), origin: v('origin'), batch: v('batch'),
     signs: checked('signs'),
     image: $('#productImg').hidden ? '' : $('#productImg').src,
@@ -335,23 +311,31 @@ function getData() {
 }
 
 function setData(d) {
-  ['name', 'barcode', 'category', 'prod', 'exp', 'openedDate', 'storageRequired', 'storageActual', 'manufacturer', 'origin', 'batch']
+  ['name', 'barcode', 'category', 'prod', 'exp', 'openedDate', 'manufacturer', 'origin', 'batch']
     .forEach((n) => { form.elements[n].value = d[n] || ''; });
   form.elements.dateType.value = d.dateType || 'useBy';
   form.elements.opened.checked = !!d.opened;
-  form.elements.heat.checked = !!d.heat;
-  form.elements.refrozen.checked = !!d.refrozen;
+  form.elements.storage.value = d.storage || '';
   ['allergens', 'traces', 'signs'].forEach((n) => {
     $$(`input[name="${n}"]`, form).forEach((i) => { i.checked = (d[n] || []).includes(i.value); });
   });
   setProductImage(d.image);
   syncOpened();
+  syncStorageHint();
   markMyAllergies();
 }
 
 function setProductImage(src) {
   const img = $('#productImg');
   if (src) { img.src = src; img.hidden = false; } else { img.removeAttribute('src'); img.hidden = true; }
+}
+
+// يعرض طريقة الحفظ الموصى بها حسب نوع المنتج
+function syncStorageHint() {
+  const c = CATEGORIES[form.elements.category.value];
+  $('#storageHint').textContent = c && c.storage
+    ? `الحفظ الموصى به لهذا النوع: ${STORAGE[c.storage]}. هل حُفظ المنتج بهذه الطريقة؟`
+    : 'اتبع طريقة الحفظ المكتوبة على العبوة.';
 }
 
 function syncOpened() {
@@ -362,7 +346,7 @@ function syncOpened() {
 
 /* ---------------- حساسيتي ---------------- */
 
-const loadMyAllergies = () => store.get('salih.myAllergies', []);
+const loadMyAllergies = () => store.get('salih.myAllergies', []).filter((id) => ALLERGENS.some((a) => a.id === id));
 
 function markMyAllergies() {
   const mine = loadMyAllergies();
@@ -470,7 +454,7 @@ async function handleBarcode(raw) {
 
 // قاعدة Open Food Facts المفتوحة (مجانية ولا تحتاج مفتاحًا)
 async function lookupProduct(code) {
-  const fields = 'product_name,product_name_ar,product_name_en,brands,allergens_tags,traces_tags,origins,manufacturing_places,countries,conservation_conditions,conservation_conditions_ar,categories_tags,image_front_small_url';
+  const fields = 'product_name,product_name_ar,product_name_en,brands,allergens_tags,traces_tags,origins,manufacturing_places,countries,categories_tags,image_front_small_url';
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 9000);
   try {
@@ -489,7 +473,6 @@ async function lookupProduct(code) {
       allergens: mapAllergens(tags('allergens_tags')),
       traces: mapAllergens(tags('traces_tags')),
       category: guessCategory(tags('categories_tags')),
-      storage: guessStorage(`${p.conservation_conditions_ar || ''} ${p.conservation_conditions || ''}`),
       image: p.image_front_small_url || '',
     };
   } finally {
@@ -515,21 +498,12 @@ function guessCategory(tags) {
   return '';
 }
 
-function guessStorage(text) {
-  const t = text.toLowerCase();
-  if (/congel|surgel|frozen|freez|-18|مجمد|تجميد|المجمد/.test(t)) return 'freezer';
-  if (/r[ée]frig|frigo|fridge|chill|\+?[0-4]\s*°?\s*c?\s*(?:-|à|to|و|إلى)\s*\+?[4-8]\s*°|تبريد|ثلاجة|مبرد|مبرّد/.test(t)) return 'fridge';
-  if (/sec|dry|cool|frais|بارد|جاف/.test(t)) return 'cool';
-  return '';
-}
-
 function applyProduct(p) {
   if (p.name) form.elements.name.value = p.name;
   if (p.brand) form.elements.manufacturer.value = p.brand;
   if (p.origin) form.elements.origin.value = p.origin;
   if (p.category) form.elements.category.value = p.category;
-  if (p.storage) form.elements.storageRequired.value = p.storage;
-  else if (p.category && CATEGORIES[p.category].storage) form.elements.storageRequired.value = CATEGORIES[p.category].storage;
+  syncStorageHint();
   $$('input[name="allergens"]', form).forEach((i) => { i.checked = p.allergens.includes(i.value); });
   $$('input[name="traces"]', form).forEach((i) => { i.checked = p.traces.includes(i.value); });
   setProductImage(p.image);
@@ -861,10 +835,10 @@ function samples() {
   const t = startOfToday();
   const iso = (n) => toISO(addDays(t, n));
   return [
-    { label: 'حليب منتهي', data: { name: 'حليب طازج كامل الدسم (مثال)', barcode: withCheckDigit('628100000101'), category: 'dairy', prod: iso(-8), exp: iso(-1), dateType: 'useBy', allergens: ['milk'], traces: [], storageRequired: 'fridge', storageActual: 'fridge', manufacturer: 'مصنع ألبان محلي', origin: 'السعودية', batch: 'L2407', signs: [] } },
-    { label: 'علبة منتفخة', data: { name: 'فول مدمس معلّب (مثال)', barcode: withCheckDigit('622100000202'), category: 'canned', prod: iso(-210), exp: iso(520), dateType: 'useBy', allergens: [], traces: [], storageRequired: 'cool', storageActual: 'cool', manufacturer: 'شركة أغذية معلبة', origin: 'مصر', batch: 'B1188', signs: ['swollen'] } },
-    { label: 'لبنة طازجة', data: { name: 'لبنة كاملة الدسم (مثال)', barcode: withCheckDigit('629100000303'), category: 'dairy', prod: iso(-3), exp: iso(18), dateType: 'useBy', allergens: ['milk'], traces: [], storageRequired: 'fridge', storageActual: 'fridge', manufacturer: 'مزارع الألبان', origin: 'الإمارات', batch: 'LB031', signs: [] } },
-    { label: 'خبز ينتهي غدًا', data: { name: 'خبز توست أبيض (مثال)', barcode: withCheckDigit('625100000404'), category: 'bakery', prod: iso(-4), exp: iso(1), dateType: 'bestBefore', allergens: ['gluten'], traces: ['sesame', 'milk'], storageRequired: 'cool', storageActual: 'room', manufacturer: 'مخبز الحي', origin: 'الأردن', batch: '', signs: [] } },
+    { label: 'حليب منتهي', data: { name: 'حليب طازج كامل الدسم (مثال)', barcode: withCheckDigit('628100000101'), category: 'dairy', prod: iso(-8), exp: iso(-1), dateType: 'useBy', allergens: ['milk'], traces: [], storage: 'suitable', manufacturer: 'مصنع ألبان محلي', origin: 'السعودية', batch: 'L2407', signs: [] } },
+    { label: 'علبة منتفخة', data: { name: 'فول مدمس معلّب (مثال)', barcode: withCheckDigit('622100000202'), category: 'canned', prod: iso(-210), exp: iso(520), dateType: 'useBy', allergens: [], traces: [], storage: 'suitable', manufacturer: 'شركة أغذية معلبة', origin: 'مصر', batch: 'B1188', signs: ['swollen'] } },
+    { label: 'لبنة طازجة', data: { name: 'لبنة كاملة الدسم (مثال)', barcode: withCheckDigit('629100000303'), category: 'dairy', prod: iso(-3), exp: iso(18), dateType: 'useBy', allergens: ['milk'], traces: [], storage: 'suitable', manufacturer: 'مزارع الألبان', origin: 'الإمارات', batch: 'LB031', signs: [] } },
+    { label: 'خبز ينتهي غدًا', data: { name: 'خبز توست أبيض (مثال)', barcode: withCheckDigit('625100000404'), category: 'bakery', prod: iso(-4), exp: iso(1), dateType: 'bestBefore', allergens: ['gluten'], traces: ['sesame', 'milk'], storage: 'uncertain', manufacturer: 'مخبز الحي', origin: 'الأردن', batch: '', signs: [] } },
   ];
 }
 
@@ -874,6 +848,7 @@ function resetAll() {
   form.reset();
   setProductImage('');
   syncOpened();
+  syncStorageHint();
   $('#result').hidden = true;
   $('#ocrPanel').hidden = true;
   hideStatus();
@@ -910,14 +885,11 @@ function init() {
     saveHistory(d, r);
   });
   form.addEventListener('reset', () => setTimeout(() => {
-    setProductImage(''); syncOpened(); $('#result').hidden = true; $('#ocrPanel').hidden = true; hideStatus();
+    setProductImage(''); syncOpened(); syncStorageHint(); $('#result').hidden = true; $('#ocrPanel').hidden = true; hideStatus();
   }));
 
   form.elements.opened.addEventListener('change', syncOpened);
-  form.elements.category.addEventListener('change', () => {
-    const c = CATEGORIES[form.elements.category.value];
-    if (c && c.storage && !form.elements.storageRequired.value) form.elements.storageRequired.value = c.storage;
-  });
+  form.elements.category.addEventListener('change', syncStorageHint);
 
   // الكاميرا
   $('#btnScan').addEventListener('click', openScanner);
